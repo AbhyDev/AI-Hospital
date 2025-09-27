@@ -4,18 +4,27 @@ import './glass.css'
 type ChatItem = {
   role: 'assistant' | 'user'
   content: string
-  speaker?: 'GP' | 'Specialist' | 'Radiologist' | 'Pathologist' | 'Assistant'
+  speaker?: string
 }
 
 type AskEvent = {
   thread_id: string
-  speaker?: 'GP' | 'Specialist' | 'Radiologist' | 'Pathologist' | 'Assistant'
+  speaker?: string
+  question?: string
+  current_agent?: string
 }
 
 type MessageEventData = {
   thread_id: string
   content: string
-  speaker?: 'GP' | 'Specialist' | 'Radiologist' | 'Pathologist' | 'Assistant'
+  speaker?: string
+  current_agent?: string
+}
+
+type FinalEventData = {
+  thread_id: string
+  message: string | null
+  current_agent?: string
 }
 
 const BACKEND = import.meta.env.VITE_API_BASE || '' // use proxy when ''
@@ -24,6 +33,7 @@ export default function App() {
   const [threadId, setThreadId] = useState<string | null>(null)
   const [chat, setChat] = useState<ChatItem[]>([])
   const [pendingAsk, setPendingAsk] = useState<AskEvent | null>(null)
+  const [currentAgent, setCurrentAgent] = useState<string>('GP')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -64,10 +74,12 @@ export default function App() {
     es.addEventListener('thread', (e) => {
       const data = JSON.parse((e as MessageEvent).data)
       setThreadId(data.thread_id)
+      setCurrentAgent('GP')
     })
 
     es.addEventListener('message', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as MessageEventData
+      if (data.current_agent) setCurrentAgent(data.current_agent)
       if (!data.content?.trim()) return // Do not render empty messages
       setChat((c) => {
         const last = c[c.length - 1]
@@ -79,11 +91,20 @@ export default function App() {
     es.addEventListener('ask_user', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as AskEvent
       setPendingAsk(data)
+      if (data.current_agent) setCurrentAgent(data.current_agent)
+      if (data.question?.trim()) {
+        setChat((c) => {
+          const last = c[c.length - 1]
+          if (last && last.role === 'assistant' && last.content === data.question) return c
+          return [...c, { role: 'assistant', content: data.question!, speaker: data.speaker || data.current_agent || 'AI' }]
+        })
+      }
       es.close()
     })
 
     es.addEventListener('final', (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { thread_id: string; message: string | null }
+      const data = JSON.parse((e as MessageEvent).data) as FinalEventData
+      if (data.current_agent) setCurrentAgent(data.current_agent)
       if (data.message) setChat((c) => [...c, { role: 'assistant', content: data.message! }])
       es.close()
     })
@@ -96,11 +117,12 @@ export default function App() {
   const resumeStream = useCallback((tid: string, reply: string) => {
     const url = `${BACKEND}/api/graph/resume/stream?thread_id=${encodeURIComponent(tid)}&user_reply=${encodeURIComponent(reply)}`
     const es = new EventSource(url)
-    setPendingAsk(null)
+  setPendingAsk(null)
   setChat((c) => [...c, { role: 'user', content: reply }])
 
     es.addEventListener('message', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as MessageEventData
+      if (data.current_agent) setCurrentAgent(data.current_agent)
       if (!data.content?.trim()) return // Do not render empty messages
       setChat((c) => {
         const last = c[c.length - 1]
@@ -112,11 +134,20 @@ export default function App() {
     es.addEventListener('ask_user', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as AskEvent
       setPendingAsk(data)
+      if (data.current_agent) setCurrentAgent(data.current_agent)
+      if (data.question?.trim()) {
+        setChat((c) => {
+          const last = c[c.length - 1]
+          if (last && last.role === 'assistant' && last.content === data.question) return c
+          return [...c, { role: 'assistant', content: data.question!, speaker: data.speaker || data.current_agent || 'AI' }]
+        })
+      }
       es.close()
     })
 
     es.addEventListener('final', (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { thread_id: string; message: string | null }
+      const data = JSON.parse((e as MessageEvent).data) as FinalEventData
+      if (data.current_agent) setCurrentAgent(data.current_agent)
       if (data.message) setChat((c) => [...c, { role: 'assistant', content: data.message! }])
       es.close()
     })
@@ -146,6 +177,13 @@ export default function App() {
       <div ref={containerRef} className="container glass tilt">
         <header className="header">
           <h1>AI Hospital</h1>
+          <div className="status-tag glass">
+            <div className="status-clip" />
+            <div className="status-body glass-inner">
+              <span className="status-label">Current Node</span>
+              <span className="status-value">{currentAgent || '—'}</span>
+            </div>
+          </div>
           <div className="badge">Live</div>
         </header>
         <main className="chat glass-inner">
@@ -160,9 +198,7 @@ export default function App() {
           {pendingAsk && (
             <div className="bubble assistant ask">
               <div className="speaker">{pendingAsk.speaker || 'Question'}</div>
-              <div className="content">
-                {[...chat].reverse().find(m => m.role === 'assistant')?.content || '(Waiting for your answer...)'}
-              </div>
+              <div className="content">Waiting for your response…</div>
             </div>
           )}
         </main>

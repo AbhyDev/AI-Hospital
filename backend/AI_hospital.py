@@ -30,6 +30,7 @@ class AgentState(TypedDict):
     next_agent: list[str]
     agent_order: list[str]
     current_report: list[str]
+    current_agent: str
 patient_info = ""
 final_report = ""
 
@@ -175,8 +176,8 @@ def VectorRAG_Retrival(query:str, agent:str)->str:
     relevant_docs = retriever.invoke(query)
 
     Systemprompt = SystemMessage(content=f"""
-    You are an expert synthesizer. Your task is to answer the user's question by extracting and consolidating relevant information from the provided context.
-
+        response = pathllm.invoke([SystemPrompt] + state['patho_messages'])
+        return {'patho_messages': [response], 'current_agent': 'Pathologist'}
     <context>
     {relevant_docs}
     </context>
@@ -246,7 +247,7 @@ Begin by greeting the patient, then ask the first clarifying question using ask_
 """)
 
     response = gp_llm.invoke([SystemPrompt]+state['messages'])
-    return {'messages' : [response]}
+    return {'messages' : [response], 'current_agent': 'GP'}
 
 
 
@@ -333,7 +334,7 @@ Rules:
 
     
     response = ophthalllm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Ophthalmologist'}
 
 def router_opthal(state: AgentState) -> AgentState:
     # Route the request to the appropriate ophthalmologist agent
@@ -416,7 +417,7 @@ Rules:
 
     
     response = pediallm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Pediatrician'}
 
 def router_pedia(state: AgentState) -> AgentState:
     # Route the request to the appropriate ophthalmologist agent
@@ -498,7 +499,7 @@ Rules:
 
     
     response = orthollm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Orthopedist'}
 
 def router_ortho(state: AgentState) -> AgentState:
     # Route the request to the appropriate ophthalmologist agent
@@ -580,7 +581,7 @@ Rules:
 
     
     response = dermallm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Dermatologist'}
 
 def router_dermat(state: AgentState) -> AgentState:
     # Route the request to the appropriate dermatologist agent
@@ -662,7 +663,7 @@ Rules:
 
     
     response = entllm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'ENT'}
 
 def router_ent(state: AgentState) -> AgentState:
     # Route the request to the appropriate ENT agent
@@ -744,7 +745,7 @@ Rules:
 
     
     response = gynecllm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Gynecologist'}
 
 def router_gynec(state: AgentState) -> AgentState:
     # Route the request to the appropriate gynecologist agent
@@ -826,7 +827,7 @@ Rules:
 
     
     response = psychllm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Psychiatrist'}
 
 def router_psych(state: AgentState) -> AgentState:
     # Route the request to the appropriate psychiatrist agent
@@ -909,7 +910,7 @@ Rules:
 
     
     response = intmedllm.invoke([SystemPrompt]+state['specialist_messages']) 
-    return {'specialist_messages' : [response]}
+    return {'specialist_messages' : [response], 'current_agent': 'Internal Medicine'}
 
 def router_medicine(state: AgentState) -> AgentState:
     # Route the request to the appropriate internal medicine agent
@@ -980,7 +981,7 @@ def Pathologist(state: AgentState) -> AgentState:
     """)
 
     response = pathllm.invoke([SystemPrompt] + state['patho_messages'])
-    return {'patho_messages': [response]}
+    return {'patho_messages': [response], 'current_agent': 'Pathologist'}
 
 
 def router_patho(state: AgentState) -> AgentState:
@@ -1000,7 +1001,7 @@ def router_patho(state: AgentState) -> AgentState:
         state["patho_QnA"].append(last_message.content)
         # Safely route back to the caller; infer from history if stack is empty
         if state.get('next_agent') and len(state['next_agent']) > 0:
-            return state['next_agent'][-1]
+            return state['next_agent'].pop()
         # Infer caller from QnA trail
         caller_map = {
             'ophthalmologist': 'Ophthalmologist',
@@ -1051,7 +1052,7 @@ def Radiologist(state: AgentState) -> AgentState:
 
     """)
     response = radllm.invoke([SystemPrompt] + state['radio_messages'])
-    return {'radio_messages': [response]}
+    return {'radio_messages': [response], 'current_agent': 'Radiologist'}
 
 def router_radio(state: AgentState) -> AgentState:
     # Route the request to the appropriate radiologist agent
@@ -1070,7 +1071,7 @@ def router_radio(state: AgentState) -> AgentState:
         state["radio_QnA"].append(last_message.content)
         # Safely route back to the caller; infer from history if stack is empty
         if state.get('next_agent') and len(state['next_agent']) > 0:
-            return state['next_agent'][-1]
+            return state['next_agent'].pop()
         caller_map = {
             'ophthalmologist': 'Ophthalmologist',
             'orthopedist': 'Orthopedist',
@@ -1137,6 +1138,7 @@ psych_tool_node = ToolNode(psych_tools)
 med_tool_node = ToolNode(med_tools)
 patho_tool_node = ToolNode(patho_tools)
 radio_tool_node = ToolNode(radio_tools)
+gp_tool_node = ToolNode(gp_tools)
 
 # Ask-user-only tool nodes (one per agent family), used to intercept and pause before execution
 gp_ask_toolnode = ToolNode([ask_user])
@@ -1160,7 +1162,10 @@ def opthal_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = opthal_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Ophthalmologist')
+    }
 
 def opthal_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1168,7 +1173,10 @@ def opthal_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = opthal_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Ophthalmologist')
+        }
     return {}
 
 def derma_tool_invoker(state: AgentState) -> dict:
@@ -1179,7 +1187,10 @@ def derma_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = derma_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Dermatologist')
+    }
 
 def derma_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1187,7 +1198,10 @@ def derma_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = derma_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Dermatologist')
+        }
     return {}
 
 def pedia_tool_invoker(state: AgentState) -> dict:
@@ -1198,14 +1212,20 @@ def pedia_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = pedia_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Pediatrician')
+    }
 
 def pedia_askuser_invoker(state: AgentState) -> dict:
     last = state['specialist_messages'][-1]
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = pedia_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Pediatrician')
+        }
     return {}
 
 def ortho_tool_invoker(state: AgentState) -> dict:
@@ -1216,14 +1236,20 @@ def ortho_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = ortho_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Orthopedist')
+    }
 
 def ortho_askuser_invoker(state: AgentState) -> dict:
     last = state['specialist_messages'][-1]
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = ortho_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Orthopedist')
+        }
     return {}
 
 def ent_tool_invoker(state: AgentState) -> dict:
@@ -1234,7 +1260,10 @@ def ent_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = ent_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'ENT')
+    }
 
 def ent_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1242,7 +1271,10 @@ def ent_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = ent_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'ENT')
+        }
     return {}
 
 def gynec_tool_invoker(state: AgentState) -> dict:
@@ -1253,7 +1285,10 @@ def gynec_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = gynec_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Gynecologist')
+    }
 
 def gynec_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1261,7 +1296,10 @@ def gynec_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = gynec_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Gynecologist')
+        }
     return {}
 
 def psych_tool_invoker(state: AgentState) -> dict:
@@ -1272,7 +1310,10 @@ def psych_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = psych_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Psychiatrist')
+    }
 
 def psych_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1280,7 +1321,10 @@ def psych_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = psych_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Psychiatrist')
+        }
     return {}
 
 def med_tool_invoker(state: AgentState) -> dict:
@@ -1291,7 +1335,10 @@ def med_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
     tool_output_dict = med_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'specialist_messages': tool_output_messages}
+    return {
+        'specialist_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Internal Medicine')
+    }
 
 def med_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['specialist_messages'][-1]]}
@@ -1299,7 +1346,10 @@ def med_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = med_ask_toolnode.invoke(tool_input)
-        return {'specialist_messages': tool_output_dict['messages']}
+        return {
+            'specialist_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Internal Medicine')
+        }
     return {}
 
 def patho_tool_invoker(state: AgentState) -> dict:
@@ -1310,7 +1360,10 @@ def patho_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['patho_messages'][-1]]}
     tool_output_dict = patho_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'patho_messages': tool_output_messages}
+    return {
+        'patho_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Pathologist')
+    }
 
 def patho_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['patho_messages'][-1]]}
@@ -1318,7 +1371,10 @@ def patho_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = patho_ask_toolnode.invoke(tool_input)
-        return {'patho_messages': tool_output_dict['messages']}
+        return {
+            'patho_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Pathologist')
+        }
     return {}
 
 def radio_tool_invoker(state: AgentState) -> dict:
@@ -1329,7 +1385,10 @@ def radio_tool_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['radio_messages'][-1]]}
     tool_output_dict = radio_tool_node.invoke(tool_input)
     tool_output_messages = tool_output_dict['messages']
-    return {'radio_messages': tool_output_messages}
+    return {
+        'radio_messages': tool_output_messages,
+        'current_agent': state.get('current_agent', 'Radiologist')
+    }
 
 def radio_askuser_invoker(state: AgentState) -> dict:
     tool_input = {'messages': [state['radio_messages'][-1]]}
@@ -1337,7 +1396,10 @@ def radio_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = radio_ask_toolnode.invoke(tool_input)
-        return {'radio_messages': tool_output_dict['messages']}
+        return {
+            'radio_messages': tool_output_dict['messages'],
+            'current_agent': state.get('current_agent', 'Radiologist')
+        }
     return {}
 
 
@@ -1353,9 +1415,6 @@ graph.add_node("Gynecologist", Gynecologist)
 graph.add_node("Psychiatrist", Psychiatrist)
 graph.add_node("Internal Medicine", Internal_Medicine)
 
-GP_Tooler = ToolNode(tools=gp_tools)
-
-
 graph.add_node("Pathologist", Pathologist)
 graph.add_node("Radiologist", Radiologist)
 graph.add_node("Patho_Tooler", patho_tool_invoker)
@@ -1370,10 +1429,15 @@ def gp_askuser_invoker(state: AgentState) -> dict:
     if isinstance(last, AIMessage):
         tool_input = {'messages': [last]}
         tool_output_dict = gp_ask_toolnode.invoke(tool_input)
-        return {'messages': tool_output_dict['messages']}
+        return {'messages': tool_output_dict['messages'], 'current_agent': state.get('current_agent', 'GP')}
     return {}
 
-graph.add_node("GP_Tooler", GP_Tooler)
+def gp_tool_invoker(state: AgentState) -> dict:
+    tool_input = {'messages': [state['messages'][-1]]}
+    tool_output_dict = gp_tool_node.invoke(tool_input)
+    return {'messages': tool_output_dict['messages'], 'current_agent': state.get('current_agent', 'GP')}
+
+graph.add_node("GP_Tooler", gp_tool_invoker)
 graph.add_node("GP_AskUser", gp_askuser_invoker)
 
 graph.add_node("Ophthal_Tooler", opthal_tool_invoker)

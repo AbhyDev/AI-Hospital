@@ -43,7 +43,9 @@ def _initial_inputs(user_text: str):
     "radio_QnA": [],
     "next_agent": [],
     "agent_order": [],
-    "current_report": [],}
+	"current_report": [],
+	"current_agent": "GP",
+}
 
 def _extract_ask_question(state_values: dict) -> Optional[str]:
 	"""Find the ask_user tool call and return its 'question' argument.
@@ -112,6 +114,7 @@ def _speaker_for_key(stream_key: str) -> str:
 def _chunk_to_payload(chunk: dict) -> Optional[dict]:
 	# chunk is a partial state update from LangGraph stream
 	# Prefer specialist/helper streams over GP routing text
+	current_agent = chunk.get("current_agent")
 	for key in ("specialist_messages", "patho_messages", "radio_messages", "messages"):
 		msgs: List = chunk.get(key) or []
 		if not msgs:
@@ -124,7 +127,12 @@ def _chunk_to_payload(chunk: dict) -> Optional[dict]:
 				"ent", "gynecologist", "psychiatrist", "internal medicine"
 			}:
 				continue
-			return {"content": text, "speaker": _speaker_for_key(key)}
+			payload = {"content": text, "speaker": _speaker_for_key(key)}
+			if current_agent:
+				payload["current_agent"] = current_agent
+			return payload
+	if current_agent:
+		return {"current_agent": current_agent}
 	return None
 
 
@@ -140,18 +148,36 @@ async def start_graph_stream(message: str):
 	async def event_gen():
 		# Announce thread
 		yield {"event": "thread", "data": json.dumps({"thread_id": thread_id})}
+		current_agent = "GP"
 		async for chunk in myapp.astream(inputs, config, stream_mode="values"):
 			payload = _chunk_to_payload(chunk)
 			if payload:
+				agent_update = payload.get("current_agent") or chunk.get("current_agent")
+				if agent_update:
+					current_agent = agent_update
+				elif current_agent and "content" in payload:
+					payload.setdefault("current_agent", current_agent)
 				yield {"event": "message", "data": json.dumps({"thread_id": thread_id, **payload})}
 		# After stream ends, check if awaiting user or finished
 		state = myapp.get_state(config)
 		next_nodes = set(state.next or [])
+		state_values = state.values or {}
+		current_agent = state_values.get("current_agent", current_agent)
 		if next_nodes & ASK_NODES:
-			yield {"event": "ask_user", "data": json.dumps({"thread_id": thread_id})}
+			question = _extract_ask_question(state_values)
+			ask_payload = {"thread_id": thread_id}
+			if question:
+				ask_payload["question"] = question
+			if current_agent:
+				ask_payload["current_agent"] = current_agent
+				ask_payload["speaker"] = current_agent
+			yield {"event": "ask_user", "data": json.dumps(ask_payload)}
 		else:
-			final = _last_assistant_text(state.values or {})
-			yield {"event": "final", "data": json.dumps({"thread_id": thread_id, "message": final})}
+			final = _last_assistant_text(state_values)
+			final_payload = {"thread_id": thread_id, "message": final}
+			if current_agent:
+				final_payload["current_agent"] = current_agent
+			yield {"event": "final", "data": json.dumps(final_payload)}
 
 	return EventSourceResponse(event_gen())
 
@@ -171,17 +197,34 @@ async def resume_graph_stream(thread_id: str, user_reply: str):
 	myapp.update_state(config, {stream_key: updated_stream})
 
 	async def event_gen():
+		current_agent = (state.values or {}).get("current_agent", "GP")
 		async for chunk in myapp.astream(None, config, stream_mode="values"):
 			payload = _chunk_to_payload(chunk)
 			if payload:
+				agent_update = payload.get("current_agent") or chunk.get("current_agent")
+				if agent_update:
+					current_agent = agent_update
+				elif current_agent and "content" in payload:
+					payload.setdefault("current_agent", current_agent)
 				yield {"event": "message", "data": json.dumps({"thread_id": thread_id, **payload})}
 		state2 = myapp.get_state(config)
+		state_values2 = state2.values or {}
 		next_nodes = set(state2.next or [])
+		current_agent = state_values2.get("current_agent", current_agent)
 		if next_nodes & ASK_NODES:
-			question = _extract_ask_question(state2.values or {})
-			yield {"event": "ask_user", "data": json.dumps({"thread_id": thread_id, "question": question})}
+			question = _extract_ask_question(state_values2)
+			ask_payload = {"thread_id": thread_id}
+			if question:
+				ask_payload["question"] = question
+			if current_agent:
+				ask_payload["current_agent"] = current_agent
+				ask_payload["speaker"] = current_agent
+			yield {"event": "ask_user", "data": json.dumps(ask_payload)}
 		else:
-			final = _last_assistant_text(state2.values or {})
-			yield {"event": "final", "data": json.dumps({"thread_id": thread_id, "message": final})}
+			final = _last_assistant_text(state_values2)
+			final_payload = {"thread_id": thread_id, "message": final}
+			if current_agent:
+				final_payload["current_agent"] = current_agent
+			yield {"event": "final", "data": json.dumps(final_payload)}
 
 	return EventSourceResponse(event_gen())
