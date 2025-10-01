@@ -66,6 +66,9 @@ Thumbs.db
 # Vector stores (large files, regenerate as needed)
 backend/vector_stores/
 
+# Knowledge base source PDFs (large, can be regenerated / re-acquired)
+backend/Knowledge Base/
+
 # Logs
 logs/
 *.log
