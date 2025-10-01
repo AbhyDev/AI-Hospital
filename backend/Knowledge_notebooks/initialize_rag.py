@@ -3,7 +3,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 class VectorRAG:
-    model_name = "BAAI/bge-large-en-v1.5"
+    model_name = "BAAI/bge-small-en-v1.5"
     model_kwargs = {"device": "cpu"}
     encode_kwargs = {"normalize_embeddings": True}
     embedding_model = HuggingFaceEmbeddings(

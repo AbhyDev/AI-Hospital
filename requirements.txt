@@ -1,12 +1,19 @@
+# Core dependencies - install torch first to ensure CPU-only version
+torch>=2.1.0,<3.0.0 --index-url https://download.pytorch.org/whl/cpu
+
+# FastAPI and web server
 fastapi>=0.117.1
+uvicorn>=0.37.0
+sse-starlette>=3.0.2
+python-dotenv>=1.1.1
+
+# LangChain ecosystem
 langchain>=0.3.27
 langchain-chroma>=0.2.6
 langchain-google-genai>=2.1.12
-langchain-groq>=0.3.8
 langchain-huggingface>=0.3.1
 langchain-tavily>=0.2.11
 langgraph>=0.6.7
-python-dotenv>=1.1.1
-sse-starlette>=3.0.2
-uvicorn>=0.37.0
+
+# Embeddings (will use CPU-only torch installed above)
 sentence-transformers
