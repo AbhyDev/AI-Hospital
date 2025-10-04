@@ -1,4 +1,0 @@
-1 poppler
-2 tesseract-ocr
-
-python -m uvicorn backend.main:app --reload --port 8000
