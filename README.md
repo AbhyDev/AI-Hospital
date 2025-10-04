@@ -29,7 +29,8 @@ An AI-powered virtual hospital system that simulates medical consultations using
 10. API Endpoints
 11. Extending
 12. Notes (Poppler / Tesseract)
-13. License
+13. Dependencies & Requirements
+14. License
 
 ---
 
@@ -126,7 +127,34 @@ pip install pipwin
 pipwin install pyaudio
 ```
 
-## 13. License
+## 13. Dependencies & Requirements
+
+### 13.1 Backend Python Packages
+Declared in `backend/pyproject.toml`:
+```
+fastapi
+gtts
+langchain
+langchain-chroma
+langchain-google-genai
+langchain-groq
+langchain-huggingface
+langchain-tavily
+langgraph
+pygame
+python-dotenv
+sentence-transformers
+speechrecognition
+sse-starlette
+uvicorn
+```
+Install via `uv sync` (preferred) or `pip install -r requirements.txt`.
+
+### 13.2 Frontend Packages
+Runtime: `react`, `react-dom`
+Dev: `vite`, `@vitejs/plugin-react`, `typescript`, `@types/react`, `@types/react-dom`
+
+## 14. License
 This project is private and not licensed for public use.
 
 ---
