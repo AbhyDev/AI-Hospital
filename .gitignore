@@ -23,8 +23,11 @@ coverage.xml
 .hypothesis
 
 
+# Environment files
 .env
-./backend/.env
+**/.env
+.env.*
+backend/.env
 # Project-specific ignores
 backend/custom_libs/
 backend/OS_downloads.txt
