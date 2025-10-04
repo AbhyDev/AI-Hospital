@@ -25,9 +25,7 @@ coverage.xml
 
 # Environment files
 .env
-**/.env
-.env.*
-backend/.env
+
 # Project-specific ignores
 backend/custom_libs/
 backend/OS_downloads.txt
@@ -47,10 +45,7 @@ build/
 .vite/
 
 # Environment variables
-# We now allow the base .env to be committed (no secrets!) so CI/teammates have default config.
-# Keep environment-specific/local override files ignored.
-# IMPORTANT: Do NOT place real API keys or secrets in .env; instead put them in an untracked .env.local
-!.env
+# Keep ALL environment files ignored to prevent accidentally committing secrets
 .env.local
 .env.development.local
 .env.test.local
