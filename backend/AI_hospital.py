@@ -17,7 +17,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from Knowledge_notebooks.initialize_rag import VectorRAG_initialize
 from custom_libs.Audioconvert import text_to_speech, speech_to_text
-
 vector_rag = VectorRAG_initialize()
 
 class AgentState(TypedDict):

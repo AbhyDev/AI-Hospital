@@ -23,10 +23,9 @@ class VectorRAG:
     "Psychiatry":None
     }
     def initialize(self):
-        
         try:
             for i in self.vector_store.keys():
-                persist_directory = f"./vector_stores/{i}"
+                persist_directory = f"./backend/vector_stores/{i}"
                 if os.path.exists(persist_directory):
                     print(f"Loading vector store for {i}...")
                     self.vector_store[i] = Chroma(
