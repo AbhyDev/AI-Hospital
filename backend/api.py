@@ -136,6 +136,34 @@ def _chunk_to_payload(chunk: dict) -> Optional[dict]:
 	return None
 
 
+def _new_tool_calls(chunk: dict, seen_ids: set) -> list[dict]:
+	"""Extract newly issued tool calls from the last AIMessage of each stream.
+	Avoid duplicates across incremental LangGraph stream chunks using seen_ids.
+	Returns list of dicts with keys: id, name, args, agent.
+	"""
+	out: list[dict] = []
+	current_agent = chunk.get("current_agent")
+	for key in ("specialist_messages", "patho_messages", "radio_messages", "messages"):
+		msgs: List = chunk.get(key) or []
+		if not msgs:
+			continue
+		last = msgs[-1]
+		if isinstance(last, AIMessage) and getattr(last, "tool_calls", None):
+			agent_label = current_agent or _speaker_for_key(key)
+			for tc in last.tool_calls:
+				tc_id = tc.get("id")
+				if not tc_id or tc_id in seen_ids:
+					continue
+				seen_ids.add(tc_id)
+				out.append({
+					"id": tc_id,
+					"name": tc.get("name"),
+					"args": tc.get("args", {}),
+					"agent": agent_label,
+				})
+	return out
+
+
 # ---------------------------
 # Endpoints
 # ---------------------------
@@ -149,7 +177,11 @@ async def start_graph_stream(message: str):
 		# Announce thread
 		yield {"event": "thread", "data": json.dumps({"thread_id": thread_id})}
 		current_agent = "GP"
+		seen_tool_ids: set = set()
 		async for chunk in myapp.astream(inputs, config, stream_mode="values"):
+			# Emit new tool calls (if any)
+			for tc in _new_tool_calls(chunk, seen_tool_ids):
+				yield {"event": "tool", "data": json.dumps({"thread_id": thread_id, **tc})}
 			payload = _chunk_to_payload(chunk)
 			if payload:
 				agent_update = payload.get("current_agent") or chunk.get("current_agent")
@@ -198,7 +230,10 @@ async def resume_graph_stream(thread_id: str, user_reply: str):
 
 	async def event_gen():
 		current_agent = (state.values or {}).get("current_agent", "GP")
+		seen_tool_ids: set = set()
 		async for chunk in myapp.astream(None, config, stream_mode="values"):
+			for tc in _new_tool_calls(chunk, seen_tool_ids):
+				yield {"event": "tool", "data": json.dumps({"thread_id": thread_id, **tc})}
 			payload = _chunk_to_payload(chunk)
 			if payload:
 				agent_update = payload.get("current_agent") or chunk.get("current_agent")

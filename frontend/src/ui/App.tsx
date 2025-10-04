@@ -27,6 +27,14 @@ type FinalEventData = {
   current_agent?: string
 }
 
+type ToolEventData = {
+  thread_id: string
+  id: string
+  name: string
+  args?: Record<string, any>
+  agent?: string
+}
+
 const BACKEND = import.meta.env.VITE_API_BASE || '' // use proxy when ''
 
 export default function App() {
@@ -34,8 +42,11 @@ export default function App() {
   const [chat, setChat] = useState<ChatItem[]>([])
   const [pendingAsk, setPendingAsk] = useState<AskEvent | null>(null)
   const [currentAgent, setCurrentAgent] = useState<string>('GP')
+  const [tools, setTools] = useState<ToolEventData[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
+  const toolListRef = useRef<HTMLDivElement>(null)
 
   // Cursor-driven glow & subtle tilt
   useEffect(() => {
@@ -88,6 +99,11 @@ export default function App() {
       })
     })
 
+    es.addEventListener('tool', (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as ToolEventData
+      setTools((prev) => prev.some(t => t.id === data.id) ? prev : [...prev, data])
+    })
+
     es.addEventListener('ask_user', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as AskEvent
       setPendingAsk(data)
@@ -131,6 +147,11 @@ export default function App() {
       })
     })
 
+    es.addEventListener('tool', (e) => {
+      const data = JSON.parse((e as MessageEvent).data) as ToolEventData
+      setTools((prev) => prev.some(t => t.id === data.id) ? prev : [...prev, data])
+    })
+
     es.addEventListener('ask_user', (e) => {
       const data = JSON.parse((e as MessageEvent).data) as AskEvent
       setPendingAsk(data)
@@ -170,6 +191,10 @@ export default function App() {
     if (inputRef.current) inputRef.current.value = ''
   }, [threadId, pendingAsk, startStream, resumeStream])
 
+  // Auto-scroll chat & tools
+  useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight }, [chat])
+  useEffect(() => { if (toolListRef.current) toolListRef.current.scrollTop = toolListRef.current.scrollHeight }, [tools])
+
   return (
     <div className="app-root">
       <div className="liquid-bg" />
@@ -186,29 +211,51 @@ export default function App() {
           </div>
           <div className="badge">Live</div>
         </header>
-        <main className="chat glass-inner">
-          {chat.map((m: ChatItem, i: number) => (
-            <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'assistant'}`}>
-              {m.role === 'assistant' && (
-                <div className="speaker">{m.speaker || 'AI'}</div>
-              )}
-              <div className="content">{m.content}</div>
+        <div className="main-row">
+          <main className="chat glass-inner" ref={chatRef}>
+            {chat.map((m: ChatItem, i: number) => (
+              <div key={i} className={`bubble ${m.role === 'user' ? 'user' : 'assistant'}`}>
+                {m.role === 'assistant' && (
+                  <div className="speaker">{m.speaker || 'AI'}</div>
+                )}
+                <div className="content">{m.content}</div>
+              </div>
+            ))}
+            {pendingAsk && (
+              <div className="bubble assistant ask">
+                <div className="speaker">{pendingAsk.speaker || 'Question'}</div>
+                <div className="content">Waiting for your response…</div>
+              </div>
+            )}
+          </main>
+          <aside className="tool-panel glass-inner">
+            <div className="tool-panel-header">Tool Calls</div>
+            <div className="tool-list" ref={toolListRef}>
+              {tools.map((t, idx) => (
+                <div key={t.id} className={`tool-card tool-${t.name?.replace(/[^a-z0-9_]/gi,'').toLowerCase()}`}>
+                  {idx > 0 && <div className="tool-arrow">↓</div>}
+                  <div className="tool-name">{t.name}</div>
+                  <div className="tool-meta">
+                    <span className="tool-agent">{t.agent || 'Agent'}</span>
+                    {t.args && Object.keys(t.args).length > 0 && (
+                      <details className="tool-args"><summary>args</summary><pre>{JSON.stringify(t.args, null, 2)}</pre></details>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {!tools.length && <div className="tool-empty">Tool activity will appear here...</div>}
             </div>
-          ))}
-          {pendingAsk && (
-            <div className="bubble assistant ask">
-              <div className="speaker">{pendingAsk.speaker || 'Question'}</div>
-              <div className="content">Waiting for your response…</div>
-            </div>
-          )}
-        </main>
-        <form onSubmit={onSubmit} className="composer glass-inner">
-          <input ref={inputRef} className="input" type="text" placeholder={threadId ? 'Type your answer…' : 'Describe your issue…'} />
-          <button className="btn" type="submit">{threadId ? (pendingAsk ? 'Answer' : 'Continue') : 'Start'}</button>
-        </form>
-        <footer className="footer">
-          Backend base: {BACKEND || '(proxy /api → http://localhost:8000)'}
-        </footer>
+          </aside>
+        </div>
+        <div className="bottom-block">
+          <form onSubmit={onSubmit} className="composer glass-inner">
+            <input ref={inputRef} className="input" type="text" placeholder={threadId ? 'Type your answer…' : 'Describe your issue…'} />
+            <button className="btn" type="submit">{threadId ? (pendingAsk ? 'Answer' : 'Continue') : 'Start'}</button>
+          </form>
+          <footer className="footer">
+            Backend base: {BACKEND || '(proxy /api → http://localhost:8000)'}
+          </footer>
+        </div>
       </div>
     </div>
   )
