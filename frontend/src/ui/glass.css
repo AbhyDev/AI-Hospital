@@ -11,19 +11,19 @@
 }
 
 html, body, #root { height: 100%; }
-body { margin: 0; background: #0b1324; color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+body { margin: 0; background: #0b1324; color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"; overflow: hidden; }
 
 .app-root {
   position: relative;
-  min-height: 100vh;
   width: 100%;
-  overflow: hidden;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: clamp(36px, 8vh, 60px) clamp(16px, 5vw, 48px) clamp(28px, 7vh, 52px);
+  padding: 14px clamp(16px, 4vw, 42px) 14px;
   box-sizing: border-box;
+  overflow: hidden; /* lock page scroll; internal panels scroll instead */
 }
 
 /* Cursor-driven glow */
@@ -49,15 +49,17 @@ body { margin: 0; background: #0b1324; color: var(--text); font-family: ui-sans-
 .container {
   position: relative;
   z-index: 1;
-  width: min(960px, 100%);
+  width: min(1180px, 100%);
   margin: 0 auto;
-  padding: clamp(20px, 3vw, 30px);
+  padding: 18px clamp(18px, 2.2vw, 26px) 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 88vh;
-  overflow: hidden;
+  flex: 1 1 auto;
+  height: 100%;
+  overflow: hidden; /* only chat/tool list scroll internally */
 }
+.layout-grid { display: flex; }
 .tilt { transform-style: preserve-3d; transform: perspective(900px) rotateX(var(--tiltX, 0deg)) rotateY(var(--tiltY, 0deg)); transition: transform 140ms ease-out; }
 
 .glass {
@@ -78,16 +80,36 @@ body { margin: 0; background: #0b1324; color: var(--text); font-family: ui-sans-
 .header h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
 .badge { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0b1324; padding: 6px 10px; border-radius: 999px; font-weight: 700; font-size: 12px; }
 
-.chat {
-  padding: 16px;
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: 100%;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.main-row { display: flex; gap: 18px; align-items: stretch; flex: 1 1 auto; min-height: 0; }
+.chat { padding: 16px; flex: 1 1 auto; min-height: 0; max-height: 100%; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 12px; border-radius: 18px; }
+
+/* Tool panel */
+.tool-panel { width: 260px; flex: 0 0 260px; display: flex; flex-direction: column; padding: 12px 12px 18px; gap: 10px; overflow: hidden; border-radius: 18px; }
+.tool-panel-header { font-size: 14px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.tool-list { overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; padding-right: 4px; }
+.tool-card { position: relative; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); padding: 10px 12px 10px; border-radius: 14px; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(12px) saturate(140%); }
+.tool-card.tool-ask_user { background: linear-gradient(140deg, rgba(123,198,255,0.18), rgba(123,198,255,0.05)); border-color: rgba(123,198,255,0.35); }
+.tool-card.tool-search_internet { background: linear-gradient(140deg, rgba(167,139,250,0.2), rgba(167,139,250,0.06)); border-color: rgba(167,139,250,0.38); }
+.tool-card.tool-add_report { background: linear-gradient(140deg, rgba(255,123,158,0.22), rgba(255,123,158,0.05)); border-color: rgba(255,123,158,0.4); }
+.tool-card.tool-vectorrag_retrival { background: linear-gradient(140deg, rgba(120,255,200,0.22), rgba(120,255,200,0.05)); border-color: rgba(120,255,200,0.45); }
+.tool-name { font-weight: 600; font-size: 14px; color: var(--text); }
+.tool-meta { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+.tool-agent { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 600; }
+.tool-arrow { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); font-size: 18px; color: rgba(255,255,255,0.55); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+.tool-args summary { cursor: pointer; }
+.tool-args pre { margin: 6px 0 0; max-height: 160px; overflow: auto; font-size: 10px; line-height: 1.3; }
+.tool-empty { font-size: 12px; opacity: 0.6; padding: 12px 4px; text-align: center; }
+
+/* Scrollbar styling (WebKit + Firefox) */
+.chat::-webkit-scrollbar, .tool-list::-webkit-scrollbar { width: 10px; }
+.chat::-webkit-scrollbar-track, .tool-list::-webkit-scrollbar-track { background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border-radius: 10px; }
+.chat::-webkit-scrollbar-thumb, .tool-list::-webkit-scrollbar-thumb { background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5), rgba(255,255,255,0.18)); border-radius: 10px; border: 2px solid rgba(0,0,0,0.25); backdrop-filter: blur(6px); }
+.chat::-webkit-scrollbar-thumb:hover, .tool-list::-webkit-scrollbar-thumb:hover { background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.7), rgba(255,255,255,0.25)); }
+
+/* Firefox */
+.chat, .tool-list { scrollbar-color: rgba(255,255,255,0.4) transparent; scrollbar-width: thin; }
+
+.bottom-block { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
 
 .bubble { max-width: 80%; padding: 12px 14px; border-radius: 16px; display: inline-flex; flex-direction: column; gap: 6px; line-height: 1.4; }
 .bubble.assistant { align-self: flex-start; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); }
@@ -151,7 +173,11 @@ body { margin: 0; background: #0b1324; color: var(--text); font-family: ui-sans-
 }
 
 @media (max-width: 900px) {
-  .app-root { padding: clamp(20px, 6vh, 40px) clamp(16px, 4vw, 32px); }
+  .app-root { padding: 10px clamp(10px, 5vw, 26px); height: 100vh; }
+  .main-row { flex-direction: column; }
+  .tool-panel { flex-direction: row; width: auto; flex: 0 0 auto; overflow-x: auto; overflow-y: hidden; }
+  .tool-list { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .tool-card { min-width: 160px; }
 }
 
 @media (max-width: 640px) {

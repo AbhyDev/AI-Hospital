@@ -5,7 +5,7 @@
   - cd backend
   - uv sync
   - cd ..(Run backend from root directory)
-  - python -m uvicorn backend.main:app --reload --port 8000
+  - python -m uvicorn backend.main:app --reload --port 8000 
 2. Frontend:
   - cd frontend
   - npm install
