@@ -2,7 +2,7 @@
 
 ## How to Run
 
-> **Important:**
+> [!Important:]
 >
 > - Clone only the `local_running` branch of the repository (see step 1).
 > - If your virtualenv path differs adjust the `source` command accordingly (e.g. `.venv/bin/activate`).
@@ -11,7 +11,7 @@
 1. Clone (only the local_running branch)
 
 ```bash
-# Clone only the `local_running` branch. Replace https://github.com/AbhyDev/AI-Hospital with your repository URL.
+# Clone only the `local_running` branch
 git clone --branch local_running --single-branch https://github.com/AbhyDev/AI-Hospital  # clone only the local_running branch
 cd AI-Hospital  # change into the repository directory (adjust if your repo name differs)
 ```
