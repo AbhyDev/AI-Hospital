@@ -4,15 +4,15 @@
 
 > [!IMPORTANT]
 >
-> - Clone only the `local_running` branch of the repository (see step 1).
+> - Clone only the `local_working` branch of the repository (see step 1).
 > - If your virtualenv path differs adjust the `source` command accordingly (e.g. `.venv/bin/activate`).
 > - Backend runs on port `8000`; frontend default Vite port is `5173`.
 
-1. Clone (only the local_running branch)
+1. Clone (only the local_working branch)
 
 ```bash
-# Clone only the `local_running` branch
-git clone --branch local_running --single-branch https://github.com/AbhyDev/AI-Hospital  # clone only the local_running branch
+# Clone only the `local_working` branch
+git clone --branch local_working --single-branch https://github.com/AbhyDev/AI-Hospital  # clone only the local_working branch
 cd AI-Hospital  # change into the repository directory (adjust if your repo name differs)
 ```
 
