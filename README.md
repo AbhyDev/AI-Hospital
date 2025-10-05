@@ -4,8 +4,9 @@
 1. Backend:
   - cd backend
   - uv sync
+  - activate virtual environmental here in bash(source .venv/Scripts/activate)
   - cd ..(Run backend from root directory)
-  - python -m uvicorn backend.main:app --reload --port 8000 
+  - python -m uvicorn backend.main:app --reload --port 8000 :  note that it might take some time loading vector stores
 2. Frontend:
   - cd frontend
   - npm install

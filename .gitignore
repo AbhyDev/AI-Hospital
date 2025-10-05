@@ -24,7 +24,7 @@ coverage.xml
 
 
 # Environment files
-.env
+# .env
 
 # Project-specific ignores
 backend/custom_libs/
