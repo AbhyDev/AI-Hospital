@@ -2,7 +2,7 @@
 
 ## How to Run
 
-> [!Important:]
+> [!IMPORTANT]
 >
 > - Clone only the `local_running` branch of the repository (see step 1).
 > - If your virtualenv path differs adjust the `source` command accordingly (e.g. `.venv/bin/activate`).
