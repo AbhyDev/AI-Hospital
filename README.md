@@ -3,7 +3,7 @@
 ## How to Run
 
 > [!IMPORTANT]
->
+> - Due to Pushing API key to Git as per instructions, Tavily API key might be disabled by provider, please replace current key in case it does not work: "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" 
 > - Clone only the `local_working` branch of the repository (see step 1).
 > - If your virtualenv path differs adjust the `source` command accordingly (e.g. `.venv/bin/activate`).
 > - Backend runs on port `8000`; frontend default Vite port is `5173`.
