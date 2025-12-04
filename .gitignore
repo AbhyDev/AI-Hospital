@@ -69,6 +69,7 @@ Thumbs.db
 
 # Vector stores (large files, regenerate as needed)
 backend/vector_stores/
+backend/Knowledge Base
 
 # Logs
 logs/
